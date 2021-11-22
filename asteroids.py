@@ -12,8 +12,9 @@ PLAYER_ACCELERATION = 300 # in pixels per second per second
 PLAYER_MAX_SPEED = 300
 PLAYER_FIRING_DELAY = 0.3
 PLAYER_RADIUS = 30
-WINDOW_WIDTH = 800
-WINDOW_HEIGHT = 600
+
+WINDOW_WIDTH = 1600
+WINDOW_HEIGHT = 1000
 
 LASER_SPEED = 450
 LASER_RADIUS = 10
@@ -219,13 +220,18 @@ class Spaceship(Spaceobject):
         return None
  
 class Asteroid(Spaceobject):
-    def __init__(self, size):
-        if random.randint(1, 2) == 1:
-            _init_x = 0
-            _init_y = random.randint(0, WINDOW_HEIGHT)
+    def __init__(self, size=ASTEROID_LARGE, x=-1, y=-1, direction=-1):
+        if x == -1:
+            if random.randint(1, 2) == 1:
+                _init_x = 0
+                _init_y = random.randint(0, WINDOW_HEIGHT)
+            else:
+                _init_y = 0
+                _init_x = random.randint(0, WINDOW_WIDTH)
         else:
-            _init_y = 0
-            _init_x = random.randint(0, WINDOW_WIDTH)
+            _init_x = x
+            _init_y = y
+            
         _init_rot = random.random() * 3
         
         if size == ASTEROID_LARGE:
@@ -246,14 +252,17 @@ class Asteroid(Spaceobject):
         
         super().__init__(_init_x, _init_y, _init_rot, _spr)
         
-        _random_direction_degrees = random.randint(0, 360)
-        _random_direction_rads = math.radians(_random_direction_degrees)
-        self.rotation = _random_direction_rads
+        
         self.rotation_direction = random.choice([-1, 1])
-        
-        self.asteroid_movement_direction = math.radians(random.randint(0,360))
-        
-        
+        if direction == -1:
+            _random_direction_degrees = random.randint(0, 360)
+            _random_direction_rads = math.radians(_random_direction_degrees)
+            self.rotation = _random_direction_rads
+            
+            self.asteroid_movement_direction = math.radians(random.randint(0,360))
+        else:
+            self.asteroid_movement_direction = direction
+
     def tick(self, dt):
         ### ROTATION OF THE ASTEROID ###
         _rotation_speed = ASTEROID_LARGE_ROTATION_SPEED
@@ -273,12 +282,18 @@ class Asteroid(Spaceobject):
         print("Kaboom!")
         other.delete()
         
+        _hit_x = self.x
+        _hit_y = self.y
+        _laser_rotation = other.rotation
+        
         if self.asteroid_size == ASTEROID_LARGE:
             for count in range(2):
-                _new_asteroid = Asteroid(ASTEROID_MEDIUM)
+                _new_asteroid_direction = _laser_rotation + random.randint(-90, 90)
+                _new_asteroid = Asteroid(ASTEROID_MEDIUM, _hit_x, _hit_y, _new_asteroid_direction)
         if self.asteroid_size == ASTEROID_MEDIUM:
             for count in range(2):
-                Asteroid(ASTEROID_SMALL)
+                _new_asteroid_direction = _laser_rotation + random.randint(-90, 90)
+                Asteroid(ASTEROID_SMALL, _hit_x, _hit_y, _new_asteroid_direction)
             
         self.delete()
 
