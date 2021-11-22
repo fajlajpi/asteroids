@@ -10,8 +10,19 @@ PLAYER_SPEED = 5
 PLAYER_ROTATION_SPEED = 3  # in rads per second
 PLAYER_ACCELERATION = 300 # in pixels per second per second
 PLAYER_MAX_SPEED = 300
+PLAYER_FIRING_DELAY = 0.3
+PLAYER_RADIUS = 30
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 600
+
+LASER_SPEED = 450
+LASER_RADIUS = 10
+LASER_LIFESPAN = 2  # in seconds
+
+ASTEROID_LARGE = 3
+ASTEROID_MEDIUM = 2
+ASTEROID_SMALL = 1
+ASTEROID_FRAG = 0
 
 ASTEROID_LARGE_SPEED = 100
 ASTEROID_MEDIUM_SPEED = 200
@@ -19,9 +30,14 @@ ASTEROID_SMALL_SPEED = 300
 ASTEROID_FRAG_SPEED = 500
 
 ASTEROID_LARGE_ROTATION_SPEED = 1
-ASTEROID_MEDIUM_ROTATION_SPEED = 3
-ASTEROID_SMALL_ROTATION_SPEED = 4
+ASTEROID_MEDIUM_ROTATION_SPEED = 2
+ASTEROID_SMALL_ROTATION_SPEED = 3
 ASTEROID_FRAG_ROTATION_SPEED = 6
+
+ASTEROID_LARGE_RADIUS = 45
+ASTEROID_MEDIUM_RADIUS = 20
+ASTEROID_SMALL_RADIUS = 10
+ASTEROID_FRAG_RADIUS = 5
 
 ### Dictionary to store filenames of sprites used for objects
 IMAGES_PLAYER={
@@ -32,6 +48,21 @@ IMAGES_ASTEROIDS_LARGE=[
     "gfx\meteorGrey_big2.png",
     "gfx\meteorGrey_big3.png",
     "gfx\meteorGrey_big4.png",
+    ]
+IMAGES_ASTEROIDS_MEDIUM=[
+    "gfx\meteorGrey_med1.png",
+    "gfx\meteorGrey_med2.png",
+    ]
+IMAGES_ASTEROIDS_SMALL=[
+    "gfx\meteorGrey_small1.png",
+    "gfx\meteorGrey_small2.png",
+    ]
+IMAGES_ASTEROIDS_FRAG=[
+    "gfx\meteorGrey_tiny1.png",
+    "gfx\meteorGrey_tiny2.png",
+    ]
+IMAGES_LASERS=[
+    "gfx\laserRed01.png",
     ]
 
 ### Global variables to keep various necessary data
@@ -85,8 +116,44 @@ class Spaceobject:
             self.y = 0
             
         return None
+        
+    def draw_circle(self, x, y, radius):
+        iterations = 20
+        s = math.sin(2*math.pi / iterations)
+        c = math.cos(2*math.pi / iterations)
+
+        dx, dy = radius, 0
+
+        gl.glBegin(gl.GL_LINE_STRIP)
+        for i in range(iterations+1):
+            gl.glVertex2f(x+dx, y+dy)
+            dx, dy = (dx*c - dy*s), (dy*c + dx*s)
+        gl.glEnd()
+        
+    def hit_by_spaceship(self, other):
+        
+        return None
+        
+    def hit_by_laser(self, other):
+        
+        return None
+        
+    def delete(self):
+        _object_index = objects.index(self)
+        objects.pop(_object_index)
+        self.sprite.delete()
+        pyglet.clock.unschedule(self.tick)
+        print("Poof!")
+        
 
 class Spaceship(Spaceobject):
+    def __init__(self, x, y, rot, spr):
+        super().__init__(x, y, rot, spr)
+        
+        self.radius = PLAYER_RADIUS
+        
+        self.laser_timer = PLAYER_FIRING_DELAY
+        
     def tick(self, dt):
         """ mechanika lodi """
         
@@ -133,10 +200,26 @@ class Spaceship(Spaceobject):
         
         super().tick(dt)
         
+        ### COLLISION CHECKING ###
+        
+        for obj in objects:
+            if obj != self:
+                if overlaps(self, obj) == True:
+                    obj.hit_by_spaceship(self)
+                    
+        ### SHOOTING ###
+        
+        if "space" in keys:
+            if self.laser_timer < 0:
+                self.laser_timer = PLAYER_FIRING_DELAY
+                print("PEW!")
+                Laser(self.x, self.y, self.rotation, IMAGES_LASERS[0])
+        self.laser_timer -= 1 * dt
+        
         return None
  
 class Asteroid(Spaceobject):
-    def __init__(self, spr):
+    def __init__(self, size):
         if random.randint(1, 2) == 1:
             _init_x = 0
             _init_y = random.randint(0, WINDOW_HEIGHT)
@@ -145,8 +228,23 @@ class Asteroid(Spaceobject):
             _init_x = random.randint(0, WINDOW_WIDTH)
         _init_rot = random.random() * 3
         
+        if size == ASTEROID_LARGE:
+            _spr = random.choice(IMAGES_ASTEROIDS_LARGE)
+            self.asteroid_movement_speed = ASTEROID_LARGE_SPEED
+            self.radius = ASTEROID_LARGE_RADIUS
+            self.asteroid_size = 3  # 3 is LARGE, 2 is MEDIUM, 1 is SMALL, 0 is FRAGS
+        elif size == ASTEROID_MEDIUM:
+            _spr = random.choice(IMAGES_ASTEROIDS_MEDIUM)
+            self.asteroid_movement_speed = ASTEROID_MEDIUM_SPEED
+            self.radius = ASTEROID_MEDIUM_RADIUS
+            self.asteroid_size = 2
+        elif size == ASTEROID_SMALL:
+            _spr = random.choice(IMAGES_ASTEROIDS_SMALL)
+            self.asteroid_movement_speed = ASTEROID_SMALL_SPEED
+            self.radius = ASTEROID_SMALL_RADIUS
+            self.asteroid_size = 1
         
-        super().__init__(_init_x, _init_y, _init_rot, spr)
+        super().__init__(_init_x, _init_y, _init_rot, _spr)
         
         _random_direction_degrees = random.randint(0, 360)
         _random_direction_rads = math.radians(_random_direction_degrees)
@@ -154,7 +252,7 @@ class Asteroid(Spaceobject):
         self.rotation_direction = random.choice([-1, 1])
         
         self.asteroid_movement_direction = math.radians(random.randint(0,360))
-        self.asteroid_movement_speed = ASTEROID_LARGE_SPEED
+        
         
     def tick(self, dt):
         ### ROTATION OF THE ASTEROID ###
@@ -166,10 +264,54 @@ class Asteroid(Spaceobject):
         self.y_speed = self.asteroid_movement_speed * math.sin(self.asteroid_movement_direction)
         
         super().tick(dt)
+        
+    def hit_by_spaceship(self, other):
+        print("Boop!")
+        other.delete()
+        
+    def hit_by_laser(self, other):
+        print("Kaboom!")
+        other.delete()
+        
+        if self.asteroid_size == ASTEROID_LARGE:
+            for count in range(2):
+                _new_asteroid = Asteroid(ASTEROID_MEDIUM)
+        if self.asteroid_size == ASTEROID_MEDIUM:
+            for count in range(2):
+                Asteroid(ASTEROID_SMALL)
+            
+        self.delete()
+
+class Laser(Spaceobject):
+    def __init__(self, x, y, rot, spr):
+        super().__init__(x, y, rot, spr)
+        
+        self.speed = LASER_SPEED
+        self.radius = LASER_RADIUS
+        self.lifespan = LASER_LIFESPAN
+    
+    def tick(self, dt):
+        ### MOVEMENT OF THE LASER BEAM ###
+        self.x_speed = self.speed * math.cos(self.rotation)
+        self.y_speed = self.speed * math.sin(self.rotation)
+        
+        super().tick(dt)
+        
+        for obj in objects:
+            if obj != self:
+                if overlaps(self, obj) == True:
+                    obj.hit_by_laser(self)
+        
+        if self.lifespan < 0:
+            self.delete()
+        self.lifespan -= 1 * dt
 
 def draw():
     """ Funkce na vykreslování """
     window.clear()
+    
+    for obj in objects:
+        obj.draw_circle(obj.x, obj.y, obj.radius)
 
     for x_offset in (-window.width, 0, window.width):
         for y_offset in (-window.height, 0, window.height):
@@ -195,6 +337,8 @@ def key_press_handler(symbol, modifiers):
         keys.add("up")
     if symbol == key.DOWN:
         keys.add("down")
+    if symbol == key.SPACE:
+        keys.add("space")
     return None
 
 def key_release_handler(symbol, modifiers):
@@ -207,10 +351,26 @@ def key_release_handler(symbol, modifiers):
         keys.discard("up")
     if symbol == key.DOWN:
         keys.discard("down")
+    if symbol == key.SPACE:
+        keys.discard("space")
     return None
     
 def clamp (hodnota, minimum, maximum):
     return max(minimum, min(hodnota, maximum))
+
+def distance(a, b, wrap_size):
+    """Distance in one direction (x or y)"""
+    result = abs(a - b)
+    if result > wrap_size / 2:
+        result = wrap_size - result
+    return result
+
+def overlaps(a, b):
+    """Returns true if two space objects overlap"""
+    distance_squared = (distance(a.x, b.x, window.width) ** 2 +
+                        distance(a.y, b.y, window.height) ** 2)
+    max_distance_squared = (a.radius + b.radius) ** 2
+    return distance_squared < max_distance_squared
 
 def init_game():
     global window
@@ -224,8 +384,8 @@ def init_game():
     ### Create 1 spaceship object
     Spaceship(window.width // 2, window.height // 2, 0, IMAGES_PLAYER["player_ship"])
     
-    for _ in range(3):
-        Asteroid(random.choice(IMAGES_ASTEROIDS_LARGE))
+    for _ in range(2):
+        Asteroid(ASTEROID_LARGE)
         
     return None
 
