@@ -10,11 +10,11 @@ PLAYER_SPEED = 5
 PLAYER_ROTATION_SPEED = 3  # in rads per second
 PLAYER_ACCELERATION = 300 # in pixels per second per second
 PLAYER_MAX_SPEED = 300
-PLAYER_FIRING_DELAY = 0.3
+PLAYER_FIRING_DELAY = 0.3  # in seconds
 PLAYER_RADIUS = 30
 
-WINDOW_WIDTH = 1600
-WINDOW_HEIGHT = 1000
+WINDOW_WIDTH = 1200
+WINDOW_HEIGHT = 900
 
 LASER_SPEED = 450
 LASER_RADIUS = 10
@@ -25,17 +25,17 @@ ASTEROID_MEDIUM = 2
 ASTEROID_SMALL = 1
 ASTEROID_FRAG = 0
 
-ASTEROID_LARGE_SPEED = 100
+ASTEROID_LARGE_SPEED = 100  # in pixels per second
 ASTEROID_MEDIUM_SPEED = 200
 ASTEROID_SMALL_SPEED = 300
 ASTEROID_FRAG_SPEED = 500
 
-ASTEROID_LARGE_ROTATION_SPEED = 1
+ASTEROID_LARGE_ROTATION_SPEED = 1  # in rads per second
 ASTEROID_MEDIUM_ROTATION_SPEED = 2
 ASTEROID_SMALL_ROTATION_SPEED = 3
 ASTEROID_FRAG_ROTATION_SPEED = 6
 
-ASTEROID_LARGE_RADIUS = 45
+ASTEROID_LARGE_RADIUS = 45  # in pixels
 ASTEROID_MEDIUM_RADIUS = 20
 ASTEROID_SMALL_RADIUS = 10
 ASTEROID_FRAG_RADIUS = 5
@@ -65,6 +65,13 @@ IMAGES_ASTEROIDS_FRAG=[
 IMAGES_LASERS=[
     "gfx\laserRed01.png",
     ]
+    
+IMAGES_BACKGROUND=[
+    "gfx/purple.png",
+    "gfx/darkPurple.png",
+    "gfx/blue.png",
+    "gfx/black.png",
+    ]
 
 ### Global variables to keep various necessary data
 ### Such as all game objects, sprites, or keypresses
@@ -72,6 +79,25 @@ objects = list()
 keys = set()
 batch = pyglet.graphics.Batch()
 window = pyglet.window.Window(width = WINDOW_WIDTH, height = WINDOW_HEIGHT)
+
+### PREPARE Background Sprites and Batch
+bg_batch = pyglet.graphics.Batch()
+_bg_sprites_list = []
+_bg_sprite_img = pyglet.image.load(random.choice(IMAGES_BACKGROUND))
+_bg_sprite_width = _bg_sprite_img.width
+_bg_sprite_height = _bg_sprite_img.height
+_bg_x_tiles = (WINDOW_WIDTH // _bg_sprite_width) + 1
+_bg_y_tiles = (WINDOW_HEIGHT // _bg_sprite_height) + 1
+
+for x_tile in range(_bg_x_tiles):
+    _bg_sprites_list.append(list())
+    for y_tile in range(_bg_y_tiles):
+        _bg_sprites_list[x_tile].append(pyglet.sprite.Sprite(_bg_sprite_img, batch=bg_batch))
+        _bg_sprites_list[x_tile][y_tile].x = _bg_sprite_width * x_tile
+        _bg_sprites_list[x_tile][y_tile].y = _bg_sprite_height * y_tile
+        print(f"Added a tile at x: {x_tile}, y: {y_tile}")
+
+
 
 class Spaceobject:
     def __init__(self, x, y, rot, spr):
@@ -280,7 +306,6 @@ class Asteroid(Spaceobject):
         
     def hit_by_laser(self, other):
         print("Kaboom!")
-        other.delete()
         
         _hit_x = self.x
         _hit_y = self.y
@@ -296,6 +321,7 @@ class Asteroid(Spaceobject):
                 Asteroid(ASTEROID_SMALL, _hit_x, _hit_y, _new_asteroid_direction)
             
         self.delete()
+        other.delete()
 
 class Laser(Spaceobject):
     def __init__(self, x, y, rot, spr):
@@ -325,8 +351,7 @@ def draw():
     """ Funkce na vykreslování """
     window.clear()
     
-    for obj in objects:
-        obj.draw_circle(obj.x, obj.y, obj.radius)
+    
 
     for x_offset in (-window.width, 0, window.width):
         for y_offset in (-window.height, 0, window.height):
@@ -335,7 +360,14 @@ def draw():
             # Move everything drawn from now on by (x_offset, y_offset, 0)
             gl.glTranslatef(x_offset, y_offset, 0)
 
-            # Draw
+            # Draw a background image
+            bg_batch.draw()
+            
+            # Draw a circle under each gameobject
+            for obj in objects:
+                obj.draw_circle(obj.x, obj.y, obj.radius)
+
+            # Draw main sprite batch
             batch.draw()
 
             # Restore remembered state (this cancels the glTranslatef)
